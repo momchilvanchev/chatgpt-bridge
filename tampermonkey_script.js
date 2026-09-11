@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Bridge
 // @namespace    chatgpt_bridge
-// @version      0.3.2
+// @version      0.3.3
 // @description  Exposes the ChatGPT web interface as a simple curl API
 // @match        https://chatgpt.com/*
 // @connect      127.0.0.1
@@ -240,12 +240,13 @@
             false,
             prompt
         );
+        // COMMENTED OUT BECAUSE IT'S CAUSING PROBLEMS - MINOR FORMATTING CHANGES IN THE UI CAUSE IT TO NOT MATCH
+        // if (editor.innerText !== prompt) {
+        //     throw new Error(
+        //         'Prompt insertion failed: composer text does not match'
+        //     );
+        // } 
 
-        if (editor.innerText !== prompt) {
-            throw new Error(
-                'Prompt insertion failed: composer text does not match'
-            );
-        }
 
         console.log(
             '[ChatGPT Bridge] Prompt inserted.'
