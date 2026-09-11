@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         LifeSQL ChatGPT Bridge
-// @namespace    lifesql
-// @version      0.3.1
-// @description  Local bridge between LifeSQL and ChatGPT
+// @name         ChatGPT Bridge
+// @namespace    chatgpt_bridge
+// @version      0.3.2
+// @description  Exposes the ChatGPT web interface as a simple curl API
 // @match        https://chatgpt.com/*
 // @connect      127.0.0.1
 // @connect      localhost
@@ -14,7 +14,7 @@
 
     if (window.__lifesqlBridgeRunning) {
         console.log(
-            '[LifeSQL Bridge] Already running; skipping duplicate instance.'
+            '[ChatGPT Bridge] Already running; skipping duplicate instance.'
         );
         return;
     }
@@ -26,11 +26,11 @@
     const POLL_INTERVAL = 500;
     const WAIT_INTERVAL = 100;
 
-    const START_TIMEOUT = 30_000;
+    const START_TIMEOUT = 60_000;
     const FINISH_TIMEOUT = 300_000;
-    const COMPOSER_TIMEOUT = 10_000;
+    const COMPOSER_TIMEOUT = 30_000;
 
-    console.log('[LifeSQL Bridge] Loaded');
+    console.log('[ChatGPT Bridge] Loaded');
 
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
@@ -106,7 +106,7 @@
 
     async function waitForGenerationToStart() {
         console.log(
-            '[LifeSQL Bridge] Waiting for generation to start...'
+            '[ChatGPT Bridge] Waiting for generation to start...'
         );
 
         await waitForSelector(
@@ -116,25 +116,25 @@
         );
 
         console.log(
-            '[LifeSQL Bridge] Generation started.'
+            '[ChatGPT Bridge] Generation started.'
         );
     }
 
     async function waitForGenerationToFinish() {
         console.log(
-            '[LifeSQL Bridge] Waiting for generation to finish...'
+            '[ChatGPT Bridge] Waiting for generation to finish...'
         );
 
         const start = Date.now();
 
         while (Date.now() - start < FINISH_TIMEOUT) {
             const stopButton = document.querySelector(
-                '[data-testid="stop-button"]'
+                'button[data-testid="stop-button"][aria-label="Stop answering"]'
             );
 
             if (!stopButton) {
                 console.log(
-                    '[LifeSQL Bridge] Generation finished.'
+                    '[ChatGPT Bridge] Generation finished.'
                 );
 
                 return;
@@ -153,7 +153,7 @@
         assistantTextBefore
     ) {
         console.log(
-            '[LifeSQL Bridge] Waiting for assistant response text...'
+            '[ChatGPT Bridge] Waiting for final assistant response...'
         );
 
         const start = Date.now();
@@ -170,34 +170,19 @@
             if (latest) {
                 const text = latest.innerText?.trim() || '';
 
-                /*
-                 * ChatGPT may create the assistant message container before
-                 * generation finishes and populate it afterward.
-                 *
-                 * Therefore we accept either:
-                 *
-                 * 1. a different assistant element, or
-                 * 2. the same assistant element containing new text.
-                 */
+                const isNewAssistant =
+                    latest !== assistantBefore;
 
-                if (
-                    latest !== assistantBefore &&
-                    text
-                ) {
-                    console.log(
-                        '[LifeSQL Bridge] New assistant response is available.'
-                    );
-
-                    return text;
-                }
-
-                if (
+                const isChangedExistingAssistant =
                     latest === assistantBefore &&
+                    text !== assistantTextBefore;
+
+                if (
                     text &&
-                    text !== assistantTextBefore
+                    (isNewAssistant || isChangedExistingAssistant)
                 ) {
                     console.log(
-                        '[LifeSQL Bridge] Existing assistant message was populated.'
+                        '[ChatGPT Bridge] Final assistant response found.'
                     );
 
                     return text;
@@ -208,7 +193,7 @@
         }
 
         throw new Error(
-            'Timed out waiting for assistant response text'
+            'Timed out waiting for assistant response'
         );
     }
 
@@ -230,17 +215,17 @@
             assistantBefore?.innerText?.trim() || '';
 
         console.log(
-            '[LifeSQL Bridge] Assistant messages before send:',
+            '[ChatGPT Bridge] Assistant messages before send:',
             assistantsBefore.length
         );
 
         console.log(
-            '[LifeSQL Bridge] Latest assistant text before send:',
+            '[ChatGPT Bridge] Latest assistant text before send:',
             assistantTextBefore
         );
 
         console.log(
-            '[LifeSQL Bridge] Inserting prompt...'
+            '[ChatGPT Bridge] Inserting prompt...'
         );
 
         editor.focus();
@@ -263,7 +248,7 @@
         }
 
         console.log(
-            '[LifeSQL Bridge] Prompt inserted.'
+            '[ChatGPT Bridge] Prompt inserted.'
         );
 
         const sendButton = await waitForSelector(
@@ -273,23 +258,10 @@
         );
 
         console.log(
-            '[LifeSQL Bridge] Clicking Send...'
+            '[ChatGPT Bridge] Clicking Send...'
         );
 
         sendButton.click();
-
-        /*
-         * Generation monitoring starts immediately after the click.
-         *
-         * First wait for the Stop button to appear so an idle ChatGPT
-         * interface cannot be mistaken for a completed generation.
-         *
-         * Then wait for the Stop button to disappear.
-         *
-         * Finally, wait for a NEW assistant message containing actual
-         * text. ChatGPT can remove the Stop button slightly before the
-         * response text has been committed to the DOM.
-         */
 
         await waitForGenerationToStart();
 
@@ -301,7 +273,7 @@
         );
 
         console.log(
-            '[LifeSQL Bridge] Assistant response received:'
+            '[ChatGPT Bridge] Assistant response received:'
         );
 
         console.log(response);
@@ -313,14 +285,14 @@
         const { id, prompt } = requestData;
 
         console.log(
-            `[LifeSQL Bridge] Processing request ${id}`
+            `[ChatGPT Bridge] Processing request ${id}`
         );
 
         try {
             const response = await sendPrompt(prompt);
 
             console.log(
-                `[LifeSQL Bridge] Sending result for request ${id}...`
+                `[ChatGPT Bridge] Sending result for request ${id}...`
             );
 
             await request(
@@ -333,11 +305,11 @@
             );
 
             console.log(
-                `[LifeSQL Bridge] Request ${id} completed.`
+                `[ChatGPT Bridge] Request ${id} completed.`
             );
         } catch (error) {
             console.error(
-                `[LifeSQL Bridge] Request ${id} failed:`,
+                `[ChatGPT Bridge] Request ${id} failed:`,
                 error
             );
 
@@ -354,7 +326,7 @@
                 );
             } catch (reportError) {
                 console.error(
-                    '[LifeSQL Bridge] Failed to report error:',
+                    '[ChatGPT Bridge] Failed to report error:',
                     reportError
                 );
             }
@@ -383,7 +355,7 @@
                 processing = true;
 
                 console.log(
-                    '[LifeSQL Bridge] Received request:',
+                    '[ChatGPT Bridge] Received request:',
                     data.request
                 );
 
@@ -395,7 +367,7 @@
             }
         } catch (error) {
             console.error(
-                '[LifeSQL Bridge] Poll failed:',
+                '[ChatGPT Bridge] Poll failed:',
                 error
             );
         }
@@ -409,7 +381,7 @@
     request('GET', '/health')
         .then(data => {
             console.log(
-                '[LifeSQL Bridge] Server response:',
+                '[ChatGPT Bridge] Server response:',
                 JSON.stringify(data)
             );
 
@@ -417,7 +389,7 @@
         })
         .catch(error => {
             console.error(
-                '[LifeSQL Bridge] Connection failed:',
+                '[ChatGPT Bridge] Connection failed:',
                 error
             );
         });

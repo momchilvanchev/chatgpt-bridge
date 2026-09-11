@@ -37,7 +37,6 @@ app.get('/next', (req, res) => {
     });
 });
 
-// LifeSQL submits a prompt here.
 // This request stays open until Tampermonkey returns the ChatGPT response.
 app.post('/chat', (req, res) => {
     const { prompt } = req.body;
