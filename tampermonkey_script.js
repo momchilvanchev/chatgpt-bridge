@@ -30,6 +30,8 @@
     const FINISH_TIMEOUT = 300_000;
     const COMPOSER_TIMEOUT = 30_000;
 
+    const RESPONSE_SETTLE_DELAY = 1_000;
+
     console.log('[ChatGPT Bridge] Loaded');
 
     function sleep(ms) {
@@ -168,7 +170,8 @@
             const latest = assistants.at(-1);
 
             if (latest) {
-                const text = latest.innerText?.trim() || '';
+                const text =
+                    latest.textContent?.trim() || '';
 
                 const isNewAssistant =
                     latest !== assistantBefore;
@@ -179,7 +182,10 @@
 
                 if (
                     text &&
-                    (isNewAssistant || isChangedExistingAssistant)
+                    (
+                        isNewAssistant ||
+                        isChangedExistingAssistant
+                    )
                 ) {
                     console.log(
                         '[ChatGPT Bridge] Final assistant response found.'
@@ -267,6 +273,12 @@
         await waitForGenerationToStart();
 
         await waitForGenerationToFinish();
+
+        console.log(
+            `[ChatGPT Bridge] Waiting ${RESPONSE_SETTLE_DELAY}ms for the response DOM to settle...`
+        );
+
+        await sleep(RESPONSE_SETTLE_DELAY);
 
         const response = await waitForAssistantResponse(
             assistantBefore,
